@@ -3,6 +3,6 @@
         "guzzlehttp/guzzle": "^7.4",
         "ext-gd": "*",
         "ext-curl": "*",
-        "symfony/var-dumper": "^5.4"
+        "ext-json": "*"
     }
 }

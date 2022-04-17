@@ -1,85 +1,84 @@
 <?php
     // 주제2 : 데이터 가공
     declare(strict_types=1);
+    error_reporting(E_ALL & ~E_NOTICE);
+
+    use GuzzleHttp\Psr7;
+    use GuzzleHttp\Exception\ClientException;
+
     require $_SERVER['DOCUMENT_ROOT'].'/vendor/autoload.php';
 
-    $client = new GuzzleHttp\Client();
-    $res = $client->request('GET', 'https://www.data.go.kr/cmm/cmm/fileDownload.do?atchFileId=FILE_000000002374984&fileDetailSn=1&insertDataPrcus=N', [
+    try {
+        $informations = [];
+        $organizations = [];
 
-    ]);
-    //echo $res->getStatusCode();
-    // "200"
-    //echo $res->getHeader('content-type')[0];
-    // 'application/json; charset=utf8'
-    $body = $res->getBody()->getContents();
-    //$body = iconv('UTF8', 'EUCKR', $res->getBody()->getContents());
-    $bodyParsed = explode("\r\n", $body);
-    dump($bodyParsed);
-    foreach ($bodyParsed as $data) {
-        $dataArray = explode(',', $data);
-        dump($dataArray);
-        dump(gettype($dataArray[0]));
-        dump(mb_detect_encoding($dataArray[0]));
-        dump(iconv('UTF-8', 'UTF-16//TRANSLIT', $dataArray[0]));
-        exit;
-    }
-    exit;
+        // 사업과제계획서세부정보
+        $client = new GuzzleHttp\Client();
+        $response = $client->request(
+            'GET',
+            'https://api.odcloud.kr/api/15078055/v1/uddi:77b30536-c36a-4b29-b8a3-81afee769187',
+            [
+                'headers' => [
+                    'Authorization' => 'KcFRrCMNVxtEEZqtylP0lRLdmcQF5skgew/U6uZTmZTWQ3oHq1SAoblO0xDSJwfV2JCmhDjLU84KO6MyfXnMAw=='
+                ],
+                'query' => [
+                    'page' => 1,
+                    'perPage' => 204,
+                    'serviceKey' => 'KcFRrCMNVxtEEZqtylP0lRLdmcQF5skgew/U6uZTmZTWQ3oHq1SAoblO0xDSJwfV2JCmhDjLU84KO6MyfXnMAw=='
+                ]
+            ]
+        );
 
-    $ch = curl_init();
-    curl_setopt($ch, CURLOPT_URL, 'https://www.data.go.kr/cmm/cmm/fileDownload.do?atchFileId=FILE_000000002374984&fileDetailSn=1&insertDataPrcus=N');
-    curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-    curl_setopt($ch, CURLOPT_HEADER, 1);
-    curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
+        $code = $response->getStatusCode();
+        if ($code === 200) {
+            $body = $response->getBody();
+            $informations = json_decode($body->getContents(), true);
+        }
 
-    $fp = fopen('1234.csv', 'w');
-    curl_setopt($ch, CURLOPT_FILE, $fp);
-    $response = curl_exec($ch);
+        // 사업과제계획서참여기관
+        $response = $client->request(
+            'GET',
+            'https://api.odcloud.kr/api/15078052/v1/uddi:198fa64b-b1d8-46a8-9f04-97c845917e86',
+            [
+                'headers' => [
+                    'Authorization' => 'KcFRrCMNVxtEEZqtylP0lRLdmcQF5skgew/U6uZTmZTWQ3oHq1SAoblO0xDSJwfV2JCmhDjLU84KO6MyfXnMAw=='
+                ],
+                'query' => [
+                    'page' => 1,
+                    'perPage' => 121,
+                    'serviceKey' => 'KcFRrCMNVxtEEZqtylP0lRLdmcQF5skgew/U6uZTmZTWQ3oHq1SAoblO0xDSJwfV2JCmhDjLU84KO6MyfXnMAw=='
+                ]
+            ]
+        );
 
-    $header_size = curl_getinfo($ch, CURLINFO_HEADER_SIZE);
-    var_dump($response);
-    var_dump($header_size);
-    exit;
-    $header = substr($response, 0, $header_size);
-    $body = substr($response, $header_size);
-    curl_close($ch);
-    fclose($fp);
+        $code = $response->getStatusCode(); // 200
+        if ($code === 200) {
+            $body = $response->getBody();
+            $organizations = json_decode($body->getContents(), true);
+        }
 
-    var_dump($header);
-    var_dump($body);
+        if (count($informations['data']) > 0 && count($organizations['data']) > 0) {
+            $extraData = [];
+            $numberCount = [];
 
-    exit;
+            foreach ($organizations['data'] as $organization) {
+                $numberCount[$organization['사업_과제번호']]++;
+                $extraData[$organization['사업_과제번호']][] = [
+                    '참여형태' => $organization['참여형태'],
+                    '발주자여부' => $organization['발주자여부'],
+                    '참여기관부담금액' => (int) ($organization['참여기관부담금액_현금'] + $organization['참여기관부담금액_현물'])
+                ];
+            }
 
-    $newfname = $_SERVER['DOCUMENT_ROOT'].'/2';
-    $file = fopen ('http://www.data.go.kr/cmm/cmm/fileDownload.do?atchFileId=FILE_000000002374984&fileDetailSn=1&insertDataPrcus=N', 'rb');
-    var_dump($file);
-    exit;
-    if ($file) {
-        $newf = fopen ($newfname, 'wb');
-        if ($newf) {
-            while(!feof($file)) {
-                fwrite($newf, fread($file, 1024 * 8), 1024 * 8);
+            foreach ($informations['data'] as &$information) {
+                if (isset($extraData[$information['사업_과제번호']])) {
+                    $information['참여기관정보'] = $extraData[$information['사업_과제번호']];
+                }
             }
         }
-    }
-    if ($file) {
-        fclose($file);
-    }
-    if ($newf) {
-        fclose($newf);
+    } catch (ClientException $e) {
+        echo Psr7\Message::toString($e->getRequest());
+        echo Psr7\Message::toString($e->getResponse());
     }
 
-    exit;
-
-    // 한국기계연구원_연구관리_사업과제계획서참여기관
-    //$file1JsonData = file_get_contents('https://www.data.go.kr/cmm/cmm/fileDownload.do?atchFileId=FILE_000000002374984&fileDetailSn=1&insertDataPrcus=N');
-    $file1JsonData = readfile('http://www.data.go.kr/cmm/cmm/fileDownload.do?atchFileId=FILE_000000002374984&fileDetailSn=1&insertDataPrcus=N');
-    var_dump($file1JsonData);
-    exit;
-    $file1ArrayData = json_decode($file1JsonData, true);
-    // 한국기계연구원_연구관리_사업과제계획서세부정보
-    $file2JsonData = file_get_contents('https://www.data.go.kr/cmm/cmm/fileDownload.do?atchFileId=FILE_000000002375029&fileDetailSn=1&insertDataPrcus=N');
-    $file1ArrayData = json_decode($file2JsonData, true);
-
-    echo "<pre>"; print_r($file1ArrayData); echo "</pre>";
-    echo "<pre>"; print_r($file1ArrayData); echo "</pre>";
-    exit;
+    echo json_encode($informations['data']);
