@@ -1,10 +1,10 @@
 # 개인 과제 설명
 
 ## 사용 PHP 버전
-- php 7.2.34
+- php 7.4.27
 
 ## 프로젝트 초기화
-- git pull https://github.com/songxue77/assignment20220411.git
+- git clone https://github.com/songxue77/assignment20220411.git
 - cd /assignment20220411/backend
 - composer install
 
@@ -25,5 +25,3 @@
 - 웹 브라우저로 localhost:8000/3/generateInsertQuery.php 접근
   - 테이블은 코드에 코멘트로 작성하였습니다.
   - 사용한 데이터베이스는 MySQL입니다.
-  - 
-
